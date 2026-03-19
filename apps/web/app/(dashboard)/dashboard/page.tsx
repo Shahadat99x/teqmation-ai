@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Globe2, Plus } from "lucide-react";
+import { ArrowRight, BellRing, Globe2, Plus } from "lucide-react";
 
+import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -11,6 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { env } from "@/lib/env";
+import { getFollowUpDashboardOverview } from "@/lib/follow-ups/server";
 import { getLeadDashboardOverview } from "@/lib/intake/server";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -21,32 +23,35 @@ const metricCards = [
     variant: "success" as const,
   },
   {
-    key: "manual",
-    label: "Manual entries",
-    variant: "default" as const,
-  },
-  {
-    key: "public",
-    label: "Public inquiries",
+    key: "open",
+    label: "Open follow-ups",
     variant: "info" as const,
   },
   {
-    key: "week",
-    label: "Created this week",
+    key: "today",
+    label: "Due today",
+    variant: "default" as const,
+  },
+  {
+    key: "overdue",
+    label: "Overdue",
     variant: "warning" as const,
   },
 ];
 
 export default async function DashboardPage() {
-  const overview = await getLeadDashboardOverview();
-  const publicInquiryHref = `/inquiry/${overview.workspace.workspaceSlug}`;
+  const [leadOverview, followUpOverview] = await Promise.all([
+    getLeadDashboardOverview(),
+    getFollowUpDashboardOverview(),
+  ]);
+  const publicInquiryHref = `/inquiry/${leadOverview.workspace.workspaceSlug}`;
   const publicInquiryUrl = `${env.NEXT_PUBLIC_APP_URL}${publicInquiryHref}`;
 
   const metricValues = {
-    total: overview.totalLeads,
-    manual: overview.manualLeadCount,
-    public: overview.publicInquiryCount,
-    week: overview.newThisWeekCount,
+    total: leadOverview.totalLeads,
+    open: followUpOverview.openCount,
+    today: followUpOverview.dueTodayCount,
+    overdue: followUpOverview.overdueCount,
   };
 
   return (
@@ -56,16 +61,16 @@ export default async function DashboardPage() {
         <div className="relative grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-4">
             <Badge className="w-fit" variant="info">
-              Phase 03 live
+              Phase 04 live
             </Badge>
             <div className="space-y-3">
               <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Smart Intake is now the first real workflow in the product.
+                Follow-up operations are now visible day to day.
               </h2>
               <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                {overview.workspace.workspaceName} can now capture leads from inside
-                the dashboard and from a public inquiry form, with source tracking,
-                default stage assignment, and the first activity log entry.
+                {leadOverview.workspace.workspaceName} can now capture leads,
+                schedule reminders from lead records, and surface due or overdue
+                work directly inside the dashboard.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -87,6 +92,16 @@ export default async function DashboardPage() {
                 <Globe2 className="h-4 w-4" />
                 Open public inquiry form
               </Link>
+              <Link
+                className={cn(
+                  buttonVariants({ variant: "ghost", size: "lg" }),
+                  "rounded-2xl",
+                )}
+                href="/follow-ups"
+              >
+                <BellRing className="h-4 w-4" />
+                Open follow-ups
+              </Link>
             </div>
           </div>
 
@@ -103,8 +118,10 @@ export default async function DashboardPage() {
                 {publicInquiryUrl}
               </div>
               <p className="text-sm leading-6 text-slate-300">
-                Public submissions use the source <span className="font-medium text-white">Public Inquiry</span> and
-                start in the <span className="font-medium text-white">New Lead</span> stage.
+                Public submissions use the source{" "}
+                <span className="font-medium text-white">Public Inquiry</span>,
+                start in the <span className="font-medium text-white">New Lead</span>{" "}
+                stage, and can now move straight into a reminder workflow.
               </p>
             </CardContent>
           </Card>
@@ -127,15 +144,80 @@ export default async function DashboardPage() {
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader>
+            <CardTitle>Due follow-ups</CardTitle>
+            <CardDescription>
+              Open reminder work that is currently due or overdue.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {followUpOverview.dueFollowUps.length > 0 ? (
+              <ul className="space-y-3">
+                {followUpOverview.dueFollowUps.map((followUp) => (
+                  <li
+                    className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                    key={followUp.id}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <Link
+                          className="text-sm font-semibold text-slate-950 hover:text-sky-700"
+                          href={`/leads/${followUp.lead_id}`}
+                        >
+                          {followUp.lead?.full_name ?? "Lead record"}
+                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                          <FollowUpStatusBadge status={followUp.status} />
+                          <Badge variant={followUp.channel === "email" ? "info" : "default"}>
+                            {followUp.channel}
+                          </Badge>
+                          {followUp.lead?.source ? (
+                            <Badge
+                              variant={
+                                followUp.lead.source === "Public Inquiry" ? "info" : "default"
+                              }
+                            >
+                              {followUp.lead.source}
+                            </Badge>
+                          ) : null}
+                          <Badge
+                            variant={
+                              new Date(followUp.due_at).getTime() < Date.now()
+                                ? "warning"
+                                : "success"
+                            }
+                          >
+                            {new Date(followUp.due_at).getTime() < Date.now()
+                              ? "Overdue"
+                              : "Due today"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-500">
+                        {formatDateTime(followUp.due_at)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+                No due follow-ups right now. Schedule reminders from a lead detail page.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle>Recent leads</CardTitle>
             <CardDescription>
               The newest records created through the dashboard or public inquiry flow.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {overview.recentLeads.length > 0 ? (
+            {leadOverview.recentLeads.length > 0 ? (
               <ul className="space-y-3">
-                {overview.recentLeads.map((lead) => (
+                {leadOverview.recentLeads.map((lead) => (
                   <li
                     className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
                     key={lead.id}
@@ -169,39 +251,14 @@ export default async function DashboardPage() {
                 No leads yet. Start with a manual entry or a public inquiry.
               </div>
             )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Phase 03 boundary</CardTitle>
-            <CardDescription>
-              Intake is live, but later workflow modules still stay out of scope here.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-3 text-sm leading-6 text-slate-600">
-              <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No follow-up scheduling yet
-              </li>
-              <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No stage automation or pipeline movement
-              </li>
-              <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No documents, invoices, or AI workflows
-              </li>
-              <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No analytics beyond operational intake visibility
-              </li>
-            </ul>
             <Link
               className={cn(
                 buttonVariants({ variant: "secondary" }),
                 "mt-5 inline-flex rounded-2xl",
               )}
-              href="/leads"
+              href="/follow-ups"
             >
-              Go to leads
+              Go to follow-ups
               <ArrowRight className="h-4 w-4" />
             </Link>
           </CardContent>
