@@ -1,0 +1,174 @@
+{
+  "name": "ClientFlow AI - Invoice Overdue Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "id": "invoice-overdue-trigger",
+      "name": "Invoice Overdue Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/get_overdue_invoice_queue'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"p_limit\": 100 }"
+      },
+      "id": "load-overdue-invoice-queue",
+      "name": "Load Overdue Invoice Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.lead_email}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "overdue-email-available",
+      "name": "Overdue Email Available",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [740, 280]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.EMAIL_FROM_ADDRESS}}",
+        "toEmail": "={{$json.lead_email}}",
+        "subject": "Invoice reminder: {{$json.invoice_number}} is overdue",
+        "emailType": "text",
+        "message": "=Hello {{$json.lead_name}},\\n\\nThis is a reminder that invoice {{$json.invoice_number}} from {{$json.workspace_name}} is now overdue.\\nAmount: ${{($json.amount_cents / 100).toFixed(2)}}\\nDue date: {{$json.due_at}}\\n\\n{{ $json.external_payment_link ? 'Payment link: ' + $json.external_payment_link : 'Please reply to this email for payment instructions.' }}"
+      },
+      "id": "send-overdue-reminder",
+      "name": "Send Overdue Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1000, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/mark_invoice_reminder_sent'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"p_invoice_id\": \"{{$json.invoice_id}}\" }"
+      },
+      "id": "mark-overdue-reminder-sent",
+      "name": "Mark Overdue Reminder Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1260, 280]
+    }
+  ],
+  "connections": {
+    "Invoice Overdue Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Overdue Invoice Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Overdue Invoice Queue": {
+      "main": [
+        [
+          {
+            "node": "Overdue Email Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Overdue Email Available": {
+      "main": [
+        [
+          {
+            "node": "Send Overdue Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Overdue Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Overdue Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "phase-07-invoice-overdue-reminder"
+}
