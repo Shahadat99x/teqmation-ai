@@ -26,7 +26,7 @@ export const navigationItems: NavigationItem[] = [
   {
     title: "Leads",
     href: "/leads",
-    description: "Manual and form-based lead intake will land here in Phase 03.",
+    description: "Manual intake, public inquiries, and the first CRM records.",
     icon: Users,
   },
   {
@@ -75,4 +75,3 @@ export function getActiveNavigationItem(pathname: string) {
     navigationItems[0]
   );
 }
-
