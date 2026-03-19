@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 
 import { FollowUpForm } from "@/components/follow-ups/follow-up-form";
 import { FollowUpList } from "@/components/follow-ups/follow-up-list";
+import { DocumentRequestChecklist } from "@/components/documents/document-request-checklist";
+import { DocumentRequestForm } from "@/components/documents/document-request-form";
+import { UploadedDocumentsList } from "@/components/documents/uploaded-documents-list";
 import { StageBadge } from "@/components/stages/stage-badge";
 import { StageHistoryList } from "@/components/stages/stage-history-list";
 import { StageSelectorForm } from "@/components/stages/stage-selector-form";
@@ -15,6 +18,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { env } from "@/lib/env";
+import { getLeadDocumentHub } from "@/lib/documents/server";
+import { buildDocumentRequestFormState } from "@/lib/documents/validation";
 import { getLeadFollowUps } from "@/lib/follow-ups/server";
 import { buildFollowUpFormState } from "@/lib/follow-ups/validation";
 import { getLeadDetail } from "@/lib/intake/server";
@@ -30,11 +36,12 @@ type LeadDetailPageProps = {
 
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { leadId } = await params;
-  const [{ lead, activities }, followUps, stageHistory, stages] = await Promise.all([
+  const [{ lead, activities }, followUps, stageHistory, stages, documentHub] = await Promise.all([
     getLeadDetail(leadId),
     getLeadFollowUps(leadId),
     getLeadStageHistory(leadId),
     listPipelineStages(),
+    getLeadDocumentHub(leadId),
   ]);
 
   if (!lead) {
@@ -188,6 +195,61 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
               followUps={followUps}
               showLeadLink={false}
             />
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Request documents</CardTitle>
+            <CardDescription>
+              Create a checklist and secure upload link for this lead.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <DocumentRequestForm
+              initialState={buildDocumentRequestFormState()}
+              leadId={lead.id}
+            />
+            {documentHub.activeUploadLink ? (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                  Current upload link
+                </p>
+                <p className="mt-2 break-all text-sm text-slate-700">
+                  {`${env.NEXT_PUBLIC_APP_URL}/upload/${documentHub.activeUploadLink.token}`}
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Expires {formatDateTime(documentHub.activeUploadLink.expires_at)}
+                </p>
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Document checklist</CardTitle>
+            <CardDescription>
+              Requested items, uploaded status, and the private file history for this lead.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-950">Requested items</h3>
+              <DocumentRequestChecklist
+                emptyMessage="No document requests have been created for this lead yet."
+                requests={documentHub.requests}
+              />
+            </div>
+            <div className="space-y-3">
+              <h3 className="text-sm font-semibold text-slate-950">Uploaded files</h3>
+              <UploadedDocumentsList
+                emptyMessage="No files have been uploaded for this lead yet."
+                uploads={documentHub.uploads}
+              />
+            </div>
           </CardContent>
         </Card>
       </section>

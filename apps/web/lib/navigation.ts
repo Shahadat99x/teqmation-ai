@@ -45,7 +45,7 @@ export const navigationItems: NavigationItem[] = [
   {
     title: "Documents",
     href: "/documents",
-    description: "Private document workflows and storage status.",
+    description: "Checklist requests, private uploads, and missing document status.",
     icon: FileText,
   },
   {
