@@ -37,3 +37,11 @@ export function formatFileSize(value: number) {
 export function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^a-zA-Z0-9.\-_]+/g, "-").replace(/-+/g, "-");
 }
+
+export function formatCurrencyFromCents(value: number) {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 2,
+  }).format(value / 100);
+}
