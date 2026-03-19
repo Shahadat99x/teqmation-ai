@@ -1,0 +1,174 @@
+{
+  "name": "ClientFlow AI - Missing Document Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 12
+            }
+          ]
+        }
+      },
+      "id": "missing-document-trigger",
+      "name": "Missing Document Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/get_missing_document_reminder_queue'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"p_limit\": 100 }"
+      },
+      "id": "load-missing-document-queue",
+      "name": "Load Missing Document Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.lead_email}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "missing-email-available",
+      "name": "Email Available",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [740, 280]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.EMAIL_FROM_ADDRESS}}",
+        "toEmail": "={{$json.lead_email}}",
+        "subject": "Reminder: documents still missing",
+        "emailType": "text",
+        "message": "=Hello {{$json.lead_name}},\\n\\nThe following requested documents are still missing: {{$json.missing_items}}.\\n\\nPlease upload them securely here: {{$env.NEXT_PUBLIC_APP_URL + '/upload/' + $json.upload_token}}\\n\\nThe earliest due date in this reminder set is {{$json.next_due_at}}."
+      },
+      "id": "send-missing-document-reminder",
+      "name": "Send Missing Document Reminder",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1000, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/mark_missing_document_reminder_sent'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"p_upload_link_id\": \"{{$json.upload_link_id}}\" }"
+      },
+      "id": "mark-missing-reminder-sent",
+      "name": "Mark Missing Reminder Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1260, 280]
+    }
+  ],
+  "connections": {
+    "Missing Document Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Missing Document Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Missing Document Queue": {
+      "main": [
+        [
+          {
+            "node": "Email Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Available": {
+      "main": [
+        [
+          {
+            "node": "Send Missing Document Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Missing Document Reminder": {
+      "main": [
+        [
+          {
+            "node": "Mark Missing Reminder Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "phase-06-missing-document-reminder"
+}
