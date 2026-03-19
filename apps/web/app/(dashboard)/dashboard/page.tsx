@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, BellRing, Globe2, Plus } from "lucide-react";
+import { ArrowRight, BellRing, GitBranch, Globe2, Plus } from "lucide-react";
 
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
+import { StageBadge } from "@/components/stages/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -14,6 +15,7 @@ import {
 import { env } from "@/lib/env";
 import { getFollowUpDashboardOverview } from "@/lib/follow-ups/server";
 import { getLeadDashboardOverview } from "@/lib/intake/server";
+import { getStageDashboardOverview } from "@/lib/stages/server";
 import { cn, formatDateTime } from "@/lib/utils";
 
 const metricCards = [
@@ -40,9 +42,10 @@ const metricCards = [
 ];
 
 export default async function DashboardPage() {
-  const [leadOverview, followUpOverview] = await Promise.all([
+  const [leadOverview, followUpOverview, stageOverview] = await Promise.all([
     getLeadDashboardOverview(),
     getFollowUpDashboardOverview(),
+    getStageDashboardOverview(),
   ]);
   const publicInquiryHref = `/inquiry/${leadOverview.workspace.workspaceSlug}`;
   const publicInquiryUrl = `${env.NEXT_PUBLIC_APP_URL}${publicInquiryHref}`;
@@ -61,16 +64,14 @@ export default async function DashboardPage() {
         <div className="relative grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-4">
             <Badge className="w-fit" variant="info">
-              Phase 04 live
+              Phase 05 live
             </Badge>
             <div className="space-y-3">
               <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Follow-up operations are now visible day to day.
+                Pipeline progress is now visible across the workspace.
               </h2>
               <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                {leadOverview.workspace.workspaceName} can now capture leads,
-                schedule reminders from lead records, and surface due or overdue
-                work directly inside the dashboard.
+                {leadOverview.workspace.workspaceName} can now capture leads, track reminders, and move each lead through a structured stage pipeline with change history.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -97,10 +98,10 @@ export default async function DashboardPage() {
                   buttonVariants({ variant: "ghost", size: "lg" }),
                   "rounded-2xl",
                 )}
-                href="/follow-ups"
+                href="/pipeline"
               >
-                <BellRing className="h-4 w-4" />
-                Open follow-ups
+                <GitBranch className="h-4 w-4" />
+                Open pipeline
               </Link>
             </div>
           </div>
@@ -121,7 +122,7 @@ export default async function DashboardPage() {
                 Public submissions use the source{" "}
                 <span className="font-medium text-white">Public Inquiry</span>,
                 start in the <span className="font-medium text-white">New Lead</span>{" "}
-                stage, and can now move straight into a reminder workflow.
+                stage, and can now move through the full pipeline intentionally.
               </p>
             </CardContent>
           </Card>
@@ -139,6 +140,76 @@ export default async function DashboardPage() {
             </CardHeader>
           </Card>
         ))}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Pipeline snapshot</CardTitle>
+            <CardDescription>
+              Current stage counts across the default V1 pipeline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {stageOverview.stageSummaries.map((summary) => (
+              <div
+                className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                key={summary.stage.id}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <StageBadge stageName={summary.stage.name} />
+                  <span className="text-sm font-semibold text-slate-950">{summary.count}</span>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent stage changes</CardTitle>
+            <CardDescription>
+              The latest lead movement through the pipeline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {stageOverview.recentStageChanges.length > 0 ? (
+              <ul className="space-y-3">
+                {stageOverview.recentStageChanges.map((entry) => (
+                  <li
+                    className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                    key={entry.id}
+                  >
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {entry.from_stage ? <StageBadge stageName={entry.from_stage.name} /> : null}
+                        <span className="text-sm text-slate-400">→</span>
+                        <StageBadge stageName={entry.to_stage.name} />
+                      </div>
+                      <p className="text-sm text-slate-500">
+                        {formatDateTime(entry.changed_at)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+                No stage changes recorded yet.
+              </div>
+            )}
+            <Link
+              className={cn(
+                buttonVariants({ variant: "secondary" }),
+                "mt-5 inline-flex rounded-2xl",
+              )}
+              href="/pipeline"
+            >
+              Go to pipeline
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
