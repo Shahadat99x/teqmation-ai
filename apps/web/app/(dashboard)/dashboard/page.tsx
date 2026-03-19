@@ -1,7 +1,14 @@
 import Link from "next/link";
-import { ArrowRight, BellRing, GitBranch, Globe2, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  GitBranch,
+  Globe2,
+  Plus,
+  ReceiptText,
+} from "lucide-react";
 
 import { FollowUpStatusBadge } from "@/components/follow-ups/follow-up-status-badge";
+import { InvoiceStatusBadge } from "@/components/invoices/invoice-status-badge";
 import { StageBadge } from "@/components/stages/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -14,9 +21,15 @@ import {
 } from "@/components/ui/card";
 import { env } from "@/lib/env";
 import { getFollowUpDashboardOverview } from "@/lib/follow-ups/server";
+import { getInvoiceDashboardOverview } from "@/lib/invoices/server";
 import { getLeadDashboardOverview } from "@/lib/intake/server";
 import { getStageDashboardOverview } from "@/lib/stages/server";
-import { cn, formatDateTime } from "@/lib/utils";
+import {
+  cn,
+  formatCurrencyFromCents,
+  formatDate,
+  formatDateTime,
+} from "@/lib/utils";
 
 const metricCards = [
   {
@@ -36,17 +49,19 @@ const metricCards = [
   },
   {
     key: "overdue",
-    label: "Overdue",
+    label: "Overdue follow-ups",
     variant: "warning" as const,
   },
 ];
 
 export default async function DashboardPage() {
-  const [leadOverview, followUpOverview, stageOverview] = await Promise.all([
-    getLeadDashboardOverview(),
-    getFollowUpDashboardOverview(),
-    getStageDashboardOverview(),
-  ]);
+  const [leadOverview, followUpOverview, stageOverview, invoiceOverview] =
+    await Promise.all([
+      getLeadDashboardOverview(),
+      getFollowUpDashboardOverview(),
+      getStageDashboardOverview(),
+      getInvoiceDashboardOverview(),
+    ]);
   const publicInquiryHref = `/inquiry/${leadOverview.workspace.workspaceSlug}`;
   const publicInquiryUrl = `${env.NEXT_PUBLIC_APP_URL}${publicInquiryHref}`;
 
@@ -64,14 +79,14 @@ export default async function DashboardPage() {
         <div className="relative grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-4">
             <Badge className="w-fit" variant="info">
-              Phase 05 live
+              Phase 07 live
             </Badge>
             <div className="space-y-3">
               <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                Pipeline progress is now visible across the workspace.
+                Intake, pipeline, documents, and billing now sit in one operational workspace.
               </h2>
               <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                {leadOverview.workspace.workspaceName} can now capture leads, track reminders, and move each lead through a structured stage pipeline with change history.
+                {leadOverview.workspace.workspaceName} can now capture leads, track reminders, collect documents, and monitor invoice status without leaving the dashboard shell.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -206,6 +221,106 @@ export default async function DashboardPage() {
               href="/pipeline"
             >
               Go to pipeline
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Billing snapshot</CardTitle>
+            <CardDescription>
+              Invoice visibility stays simple: open, overdue, and paid.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Open</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {invoiceOverview.openCount}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Overdue</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {invoiceOverview.overdueCount}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Paid</p>
+              <p className="mt-2 text-2xl font-semibold text-slate-950">
+                {invoiceOverview.paidCount}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Overdue invoices</CardTitle>
+            <CardDescription>
+              Billing work that needs a send or reminder action.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {invoiceOverview.overdueInvoices.length > 0 ? (
+              <ul className="space-y-3">
+                {invoiceOverview.overdueInvoices.map((invoice) => (
+                  <li
+                    className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                    key={invoice.id}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <Link
+                          className="text-sm font-semibold text-slate-950 hover:text-sky-700"
+                          href={`/leads/${invoice.lead_id}`}
+                        >
+                          {invoice.lead?.full_name ?? invoice.invoice_number}
+                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                          <InvoiceStatusBadge status="overdue" />
+                          <Badge variant="info">
+                            {formatCurrencyFromCents(invoice.amount_cents)}
+                          </Badge>
+                          <Badge variant="default">{invoice.invoice_number}</Badge>
+                        </div>
+                      </div>
+                      <div className="space-y-1 text-right">
+                        <p className="text-sm font-medium text-slate-950">
+                          Due {formatDate(invoice.due_at)}
+                        </p>
+                        {invoice.external_payment_link ? (
+                          <a
+                            className="inline-flex items-center gap-1 text-sm font-medium text-sky-700"
+                            href={invoice.external_payment_link}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            Payment link
+                            <ReceiptText className="h-4 w-4" />
+                          </a>
+                        ) : null}
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+                No overdue invoices right now.
+              </div>
+            )}
+            <Link
+              className={cn(
+                buttonVariants({ variant: "secondary" }),
+                "mt-5 inline-flex rounded-2xl",
+              )}
+              href="/invoices"
+            >
+              Go to invoices
               <ArrowRight className="h-4 w-4" />
             </Link>
           </CardContent>

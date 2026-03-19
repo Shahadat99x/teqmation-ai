@@ -6,6 +6,8 @@ import { FollowUpList } from "@/components/follow-ups/follow-up-list";
 import { DocumentRequestChecklist } from "@/components/documents/document-request-checklist";
 import { DocumentRequestForm } from "@/components/documents/document-request-form";
 import { UploadedDocumentsList } from "@/components/documents/uploaded-documents-list";
+import { InvoiceForm } from "@/components/invoices/invoice-form";
+import { InvoiceList } from "@/components/invoices/invoice-list";
 import { StageBadge } from "@/components/stages/stage-badge";
 import { StageHistoryList } from "@/components/stages/stage-history-list";
 import { StageSelectorForm } from "@/components/stages/stage-selector-form";
@@ -23,6 +25,8 @@ import { getLeadDocumentHub } from "@/lib/documents/server";
 import { buildDocumentRequestFormState } from "@/lib/documents/validation";
 import { getLeadFollowUps } from "@/lib/follow-ups/server";
 import { buildFollowUpFormState } from "@/lib/follow-ups/validation";
+import { getLeadInvoices } from "@/lib/invoices/server";
+import { buildInvoiceFormState } from "@/lib/invoices/validation";
 import { getLeadDetail } from "@/lib/intake/server";
 import { getLeadStageHistory, listPipelineStages } from "@/lib/stages/server";
 import { buildStageChangeFormState } from "@/lib/stages/validation";
@@ -36,13 +40,15 @@ type LeadDetailPageProps = {
 
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { leadId } = await params;
-  const [{ lead, activities }, followUps, stageHistory, stages, documentHub] = await Promise.all([
-    getLeadDetail(leadId),
-    getLeadFollowUps(leadId),
-    getLeadStageHistory(leadId),
-    listPipelineStages(),
-    getLeadDocumentHub(leadId),
-  ]);
+  const [{ lead, activities }, followUps, stageHistory, stages, documentHub, invoices] =
+    await Promise.all([
+      getLeadDetail(leadId),
+      getLeadFollowUps(leadId),
+      getLeadStageHistory(leadId),
+      listPipelineStages(),
+      getLeadDocumentHub(leadId),
+      getLeadInvoices(leadId),
+    ]);
 
   if (!lead) {
     notFound();
@@ -254,11 +260,41 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         </Card>
       </section>
 
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Create invoice</CardTitle>
+            <CardDescription>
+              Track billing for this lead with a due date, manual status updates, and an optional external payment link.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <InvoiceForm initialState={buildInvoiceFormState()} leadId={lead.id} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoices</CardTitle>
+            <CardDescription>
+              Current billing records and payment status for this lead.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <InvoiceList
+              emptyMessage="No invoices have been created for this lead yet."
+              invoices={invoices}
+              showLeadLink={false}
+            />
+          </CardContent>
+        </Card>
+      </section>
+
       <Card>
         <CardHeader>
           <CardTitle>Activity log</CardTitle>
           <CardDescription>
-            Lead creation, stage changes, and follow-up actions all appear here.
+            Lead creation, stage changes, follow-ups, documents, and invoice actions all appear here.
           </CardDescription>
         </CardHeader>
         <CardContent>
