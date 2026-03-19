@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { FollowUpForm } from "@/components/follow-ups/follow-up-form";
+import { FollowUpList } from "@/components/follow-ups/follow-up-list";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -10,6 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { getLeadFollowUps } from "@/lib/follow-ups/server";
+import { buildFollowUpFormState } from "@/lib/follow-ups/validation";
 import { getLeadDetail } from "@/lib/intake/server";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -21,7 +25,10 @@ type LeadDetailPageProps = {
 
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { leadId } = await params;
-  const { lead, activities } = await getLeadDetail(leadId);
+  const [{ lead, activities }, followUps] = await Promise.all([
+    getLeadDetail(leadId),
+    getLeadFollowUps(leadId),
+  ]);
 
   if (!lead) {
     notFound();
@@ -148,6 +155,37 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
                 No activities recorded yet.
               </div>
             )}
+          </CardContent>
+        </Card>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Card>
+          <CardHeader>
+            <CardTitle>Schedule follow-up</CardTitle>
+            <CardDescription>
+              Add the next reminder directly from the lead record so communication
+              work stays visible in the dashboard.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FollowUpForm initialState={buildFollowUpFormState()} leadId={lead.id} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Follow-ups</CardTitle>
+            <CardDescription>
+              Open and completed reminders tied to this lead.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FollowUpList
+              emptyMessage="No reminders have been scheduled for this lead yet."
+              followUps={followUps}
+              showLeadLink={false}
+            />
           </CardContent>
         </Card>
       </section>
