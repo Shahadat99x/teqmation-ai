@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { StageBadge } from "@/components/stages/stage-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LeadRecord } from "@/lib/intake/types";
@@ -52,8 +53,8 @@ export function LeadsTable({ leads }: LeadsTableProps) {
                   <td className="py-4 pr-4">
                     <SourceBadge source={lead.source} />
                   </td>
-                  <td className="py-4 pr-4 text-slate-600">
-                    {lead.current_stage?.name ?? "New Lead"}
+                  <td className="py-4 pr-4">
+                    <StageBadge stageName={lead.current_stage?.name ?? "New Lead"} />
                   </td>
                   <td className="py-4 pr-4 text-slate-600">
                     {lead.desired_destination || lead.country || "Not set"}
@@ -82,9 +83,7 @@ export function LeadsTable({ leads }: LeadsTableProps) {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <SourceBadge source={lead.source} />
-                    <Badge variant="warning">
-                      {lead.current_stage?.name ?? "New Lead"}
-                    </Badge>
+                    <StageBadge stageName={lead.current_stage?.name ?? "New Lead"} />
                   </div>
                 </div>
                 <p className="text-sm text-slate-500">{formatDate(lead.created_at)}</p>

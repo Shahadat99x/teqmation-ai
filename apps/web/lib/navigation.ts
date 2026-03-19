@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BellRing,
   FileText,
+  GitBranch,
   LayoutDashboard,
   ReceiptText,
   Settings2,
@@ -28,6 +29,12 @@ export const navigationItems: NavigationItem[] = [
     href: "/leads",
     description: "Manual intake, public inquiries, and the first CRM records.",
     icon: Users,
+  },
+  {
+    title: "Pipeline",
+    href: "/pipeline",
+    description: "Grouped stage view for where each lead sits in the process.",
+    icon: GitBranch,
   },
   {
     title: "Follow-ups",
