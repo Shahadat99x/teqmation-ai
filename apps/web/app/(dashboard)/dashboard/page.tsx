@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Sparkles, Workflow } from "lucide-react";
+import { ArrowRight, Globe2, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
@@ -10,106 +10,115 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { navigationItems } from "@/lib/navigation";
-import { cn } from "@/lib/utils";
+import { env } from "@/lib/env";
+import { getLeadDashboardOverview } from "@/lib/intake/server";
+import { cn, formatDateTime } from "@/lib/utils";
 
-const shellCards = [
+const metricCards = [
   {
-    label: "Authentication",
-    value: "Live",
-    description: "Supabase sign-in, logout, and protected routes are wired into the app shell.",
+    key: "total",
+    label: "Total leads",
     variant: "success" as const,
   },
   {
-    label: "Session handling",
-    value: "Ready",
-    description: "Middleware refreshes auth state before dashboard routes render.",
+    key: "manual",
+    label: "Manual entries",
+    variant: "default" as const,
+  },
+  {
+    key: "public",
+    label: "Public inquiries",
     variant: "info" as const,
   },
   {
-    label: "Module routing",
-    value: "Scaffolded",
-    description: "Core navigation routes exist so future business modules have a stable home.",
+    key: "week",
+    label: "Created this week",
     variant: "warning" as const,
   },
 ];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const overview = await getLeadDashboardOverview();
+  const publicInquiryHref = `/inquiry/${overview.workspace.workspaceSlug}`;
+  const publicInquiryUrl = `${env.NEXT_PUBLIC_APP_URL}${publicInquiryHref}`;
+
+  const metricValues = {
+    total: overview.totalLeads,
+    manual: overview.manualLeadCount,
+    public: overview.publicInquiryCount,
+    week: overview.newThisWeekCount,
+  };
+
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(120deg,#ffffff_0%,#f0f7ff_54%,#e0f2fe_100%)] p-6 shadow-[0_32px_80px_-52px_rgba(14,116,144,0.4)] sm:p-8">
-        <div className="absolute -right-20 top-0 h-56 w-56 rounded-full bg-sky-200/35 blur-3xl" />
-        <div className="relative grid gap-8 xl:grid-cols-[1.2fr_0.8fr]">
+      <section className="relative overflow-hidden rounded-[32px] border border-white/80 bg-[linear-gradient(120deg,#ffffff_0%,#f0f7ff_54%,#dbeafe_100%)] p-6 shadow-[0_32px_80px_-52px_rgba(14,116,144,0.4)] sm:p-8">
+        <div className="absolute -right-24 top-0 h-64 w-64 rounded-full bg-sky-200/35 blur-3xl" />
+        <div className="relative grid gap-8 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="space-y-4">
             <Badge className="w-fit" variant="info">
-              Auth + dashboard shell
+              Phase 03 live
             </Badge>
             <div className="space-y-3">
               <h2 className="max-w-2xl text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-                The first usable ClientFlow AI workspace is now in place.
+                Smart Intake is now the first real workflow in the product.
               </h2>
               <p className="max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
-                This phase establishes the protected operational shell for owners and
-                staff. The navigation, layout, and authenticated route structure are
-                ready for real product modules to plug into without reworking the app
-                frame later.
+                {overview.workspace.workspaceName} can now capture leads from inside
+                the dashboard and from a public inquiry form, with source tracking,
+                default stage assignment, and the first activity log entry.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
               <Link
                 className={cn(buttonVariants({ size: "lg" }), "rounded-2xl")}
-                href="/leads"
+                href="/leads/new"
               >
-                Explore module placeholders
-                <ArrowRight className="h-4 w-4" />
+                <Plus className="h-4 w-4" />
+                Add lead
               </Link>
-              <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-                <ShieldCheck className="h-4 w-4 text-sky-600" />
-                Workspace-safe foundation for later phases
-              </div>
+              <Link
+                className={cn(
+                  buttonVariants({ variant: "secondary", size: "lg" }),
+                  "rounded-2xl",
+                )}
+                href={publicInquiryHref}
+                target="_blank"
+              >
+                <Globe2 className="h-4 w-4" />
+                Open public inquiry form
+              </Link>
             </div>
           </div>
 
           <Card className="rounded-[28px] border-sky-100 bg-slate-950 text-white">
             <CardHeader>
-              <div className="flex items-center gap-2 text-sky-300">
-                <Workflow className="h-5 w-5" />
-                <p className="text-sm font-medium">Phase handoff</p>
-              </div>
-              <CardTitle className="text-white">
-                What Phase 03 can build on immediately
-              </CardTitle>
+              <CardTitle className="text-white">Current workspace intake link</CardTitle>
               <CardDescription className="text-slate-300">
-                Real lead workflows can now attach to stable routes, layout chrome,
-                and authenticated sessions instead of rebuilding shell concerns.
+                Share this route publicly when you want inquiries to land directly
+                inside the workspace lead list.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 text-sm leading-6 text-slate-300">
-                <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  Manual lead creation and list views
-                </li>
-                <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  Public inquiry intake into the protected workspace
-                </li>
-                <li className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                  Source tracking and lead detail scaffolding
-                </li>
-              </ul>
+            <CardContent className="space-y-4">
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-200">
+                {publicInquiryUrl}
+              </div>
+              <p className="text-sm leading-6 text-slate-300">
+                Public submissions use the source <span className="font-medium text-white">Public Inquiry</span> and
+                start in the <span className="font-medium text-white">New Lead</span> stage.
+              </p>
             </CardContent>
           </Card>
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-3">
-        {shellCards.map((card) => (
-          <Card key={card.label}>
+      <section className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+        {metricCards.map((card) => (
+          <Card key={card.key}>
             <CardHeader>
               <Badge className="w-fit" variant={card.variant}>
-                {card.value}
+                {metricValues[card.key as keyof typeof metricValues]}
               </Badge>
               <CardTitle>{card.label}</CardTitle>
-              <CardDescription>{card.description}</CardDescription>
             </CardHeader>
           </Card>
         ))}
@@ -118,97 +127,86 @@ export default function DashboardPage() {
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <Card>
           <CardHeader>
-            <Badge className="w-fit" variant="success">
-              Module map
-            </Badge>
-            <CardTitle>Core workspace routes</CardTitle>
+            <CardTitle>Recent leads</CardTitle>
             <CardDescription>
-              Every major V1 module now has a routed placeholder page inside the
-              authenticated shell.
+              The newest records created through the dashboard or public inquiry flow.
             </CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  className="group rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4 transition-colors hover:border-sky-200 hover:bg-sky-50"
-                  href={item.href}
-                  key={item.href}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-2">
-                      <p className="text-sm font-semibold text-slate-950">
-                        {item.title}
-                      </p>
-                      <p className="text-sm leading-6 text-slate-500">
-                        {item.description}
+          <CardContent>
+            {overview.recentLeads.length > 0 ? (
+              <ul className="space-y-3">
+                {overview.recentLeads.map((lead) => (
+                  <li
+                    className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                    key={lead.id}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="space-y-2">
+                        <Link
+                          className="text-sm font-semibold text-slate-950 hover:text-sky-700"
+                          href={`/leads/${lead.id}`}
+                        >
+                          {lead.full_name}
+                        </Link>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant={lead.source === "Public Inquiry" ? "info" : "default"}>
+                            {lead.source}
+                          </Badge>
+                          <Badge variant="warning">
+                            {lead.current_stage?.name ?? "New Lead"}
+                          </Badge>
+                        </div>
+                      </div>
+                      <p className="text-sm text-slate-500">
+                        {formatDateTime(lead.created_at)}
                       </p>
                     </div>
-                    <Icon className="mt-0.5 h-4 w-4 text-slate-400 transition-colors group-hover:text-sky-600" />
-                  </div>
-                </Link>
-              );
-            })}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+                No leads yet. Start with a manual entry or a public inquiry.
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <Badge className="w-fit" variant="warning">
-              Intentionally not in this phase
-            </Badge>
-            <CardTitle>Scope held back on purpose</CardTitle>
+            <CardTitle>Phase 03 boundary</CardTitle>
             <CardDescription>
-              This shell is disciplined. It avoids jumping into business logic before
-              the app frame is stable.
+              Intake is live, but later workflow modules still stay out of scope here.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <ul className="space-y-3 text-sm leading-6 text-slate-600">
               <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No lead CRUD or intake forms yet
+                No follow-up scheduling yet
               </li>
               <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No workflow automations, AI actions, or n8n orchestration
+                No stage automation or pipeline movement
               </li>
               <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No advanced permissions or workspace switching
+                No documents, invoices, or AI workflows
               </li>
               <li className="rounded-2xl border border-slate-100 bg-white px-4 py-3">
-                No analytics or later-phase reporting surfaces
+                No analytics beyond operational intake visibility
               </li>
             </ul>
+            <Link
+              className={cn(
+                buttonVariants({ variant: "secondary" }),
+                "mt-5 inline-flex rounded-2xl",
+              )}
+              href="/leads"
+            >
+              Go to leads
+              <ArrowRight className="h-4 w-4" />
+            </Link>
           </CardContent>
-        </Card>
-      </section>
-
-      <section className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2 text-sky-700">
-              <Sparkles className="h-5 w-5" />
-              <CardTitle>Why this matters</CardTitle>
-            </div>
-            <CardDescription>
-              A stable shell reduces churn in later phases and keeps product work
-              focused on business modules rather than redoing auth and layout.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Next implementation target</CardTitle>
-            <CardDescription>
-              Phase 03 should attach real lead list, manual lead create, and public
-              inquiry intake to the routes already created here.
-            </CardDescription>
-          </CardHeader>
         </Card>
       </section>
     </div>
   );
 }
-
