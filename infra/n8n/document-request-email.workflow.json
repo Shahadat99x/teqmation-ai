@@ -1,0 +1,174 @@
+{
+  "name": "ClientFlow AI - Document Request Email",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "document-request-trigger",
+      "name": "Document Request Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/get_document_request_email_queue'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"p_limit\": 100 }"
+      },
+      "id": "load-document-request-queue",
+      "name": "Load Document Request Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{$json.lead_email}}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "email-available",
+      "name": "Email Available",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [740, 280]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{$env.EMAIL_FROM_ADDRESS}}",
+        "toEmail": "={{$json.lead_email}}",
+        "subject": "Please upload your requested documents",
+        "emailType": "text",
+        "message": "=Hello {{$json.lead_name}},\\n\\n{{$json.workspace_name}} requested the following documents: {{$json.requested_items}}.\\n\\nUpload them securely here: {{$env.NEXT_PUBLIC_APP_URL + '/upload/' + $json.upload_token}}\\n\\nThis upload link expires on {{$json.expires_at}}."
+      },
+      "id": "send-document-request-email",
+      "name": "Send Document Request Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1000, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/mark_document_request_email_sent'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"p_upload_link_id\": \"{{$json.upload_link_id}}\" }"
+      },
+      "id": "mark-document-request-email-sent",
+      "name": "Mark Document Request Email Sent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1260, 280]
+    }
+  ],
+  "connections": {
+    "Document Request Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Document Request Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Document Request Queue": {
+      "main": [
+        [
+          {
+            "node": "Email Available",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Available": {
+      "main": [
+        [
+          {
+            "node": "Send Document Request Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Document Request Email": {
+      "main": [
+        [
+          {
+            "node": "Mark Document Request Email Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "phase-06-document-request-email"
+}
