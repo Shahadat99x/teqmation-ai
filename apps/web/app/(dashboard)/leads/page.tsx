@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ExternalLink, Search } from "lucide-react";
+import { ExternalLink, GitBranch, Search } from "lucide-react";
 
 import { LeadsTable } from "@/components/leads/leads-table";
 import { Badge } from "@/components/ui/badge";
@@ -63,6 +63,13 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
               >
                 Open public inquiry form
                 <ExternalLink className="h-4 w-4" />
+              </Link>
+              <Link
+                className={cn(buttonVariants({ size: "lg", variant: "ghost" }), "rounded-2xl")}
+                href="/pipeline"
+              >
+                Open pipeline
+                <GitBranch className="h-4 w-4" />
               </Link>
             </div>
           </CardHeader>

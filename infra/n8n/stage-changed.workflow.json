@@ -1,0 +1,309 @@
+{
+  "name": "ClientFlow AI - Stage Changed",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 10
+            }
+          ]
+        }
+      },
+      "id": "stage-change-trigger",
+      "name": "Stage Change Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [220, 280]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/get_stage_change_queue'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"p_limit\": 100 }"
+      },
+      "id": "load-stage-change-queue",
+      "name": "Load Stage Change Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [470, 280]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.to_stage_name}}",
+                    "rightValue": "Waiting for Documents",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "waiting_for_documents"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.to_stage_name}}",
+                    "rightValue": "Invoice Sent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "invoice_sent"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.to_stage_name}}",
+                    "rightValue": "Completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "completed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "route-stage-target",
+      "name": "Route Stage Target",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [730, 280]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "doc-hook",
+              "name": "next_action",
+              "type": "string",
+              "value": "Prepare document-request workflow in Phase 06"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-doc-workflow",
+      "name": "Prepare Document Workflow",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1010, 180]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "invoice-hook",
+              "name": "next_action",
+              "type": "string",
+              "value": "Prepare invoice reminder workflow in Phase 07"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-invoice-workflow",
+      "name": "Prepare Invoice Workflow",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1010, 280]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "completion-hook",
+              "name": "next_action",
+              "type": "string",
+              "value": "Prepare completion summary workflow later"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-completion-hook",
+      "name": "Prepare Completion Hook",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1010, 380]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/mark_stage_change_processed'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"p_history_id\": \"{{$json.history_id}}\" }"
+      },
+      "id": "mark-stage-change-processed",
+      "name": "Mark Stage Change Processed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1290, 280]
+    }
+  ],
+  "connections": {
+    "Stage Change Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Stage Change Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Stage Change Queue": {
+      "main": [
+        [
+          {
+            "node": "Route Stage Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route Stage Target": {
+      "main": [
+        [
+          {
+            "node": "Prepare Document Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Invoice Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Completion Hook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Document Workflow": {
+      "main": [
+        [
+          {
+            "node": "Mark Stage Change Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Invoice Workflow": {
+      "main": [
+        [
+          {
+            "node": "Mark Stage Change Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Completion Hook": {
+      "main": [
+        [
+          {
+            "node": "Mark Stage Change Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "phase-05-stage-changed"
+}

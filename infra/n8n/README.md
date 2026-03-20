@@ -2,10 +2,11 @@
 
 This folder contains workflow scaffolds for the first operational automation layer.
 
-Phase 04 adds:
+Current workflow scaffolds:
 
 - `follow-up-due-reminder.workflow.json`
 - `daily-follow-up-summary.workflow.json`
+- `stage-changed.workflow.json`
 
 Both workflows are intentionally scaffolded exports rather than fully live integrations.
 They assume n8n will run with server-side secrets only and use either:
@@ -14,3 +15,4 @@ They assume n8n will run with server-side secrets only and use either:
 - or app-owned endpoints once the backend automation surface is expanded later
 
 These workflows should not move core reminder rules out of the app or database.
+Stage changes are also kept DB-backed: n8n should react to the stage-change queue rather than owning stage truth.

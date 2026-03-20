@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 
 import { FollowUpForm } from "@/components/follow-ups/follow-up-form";
 import { FollowUpList } from "@/components/follow-ups/follow-up-list";
+import { StageBadge } from "@/components/stages/stage-badge";
+import { StageHistoryList } from "@/components/stages/stage-history-list";
+import { StageSelectorForm } from "@/components/stages/stage-selector-form";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import {
@@ -15,6 +18,8 @@ import {
 import { getLeadFollowUps } from "@/lib/follow-ups/server";
 import { buildFollowUpFormState } from "@/lib/follow-ups/validation";
 import { getLeadDetail } from "@/lib/intake/server";
+import { getLeadStageHistory, listPipelineStages } from "@/lib/stages/server";
+import { buildStageChangeFormState } from "@/lib/stages/validation";
 import { cn, formatDateTime } from "@/lib/utils";
 
 type LeadDetailPageProps = {
@@ -25,9 +30,11 @@ type LeadDetailPageProps = {
 
 export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   const { leadId } = await params;
-  const [{ lead, activities }, followUps] = await Promise.all([
+  const [{ lead, activities }, followUps, stageHistory, stages] = await Promise.all([
     getLeadDetail(leadId),
     getLeadFollowUps(leadId),
+    getLeadStageHistory(leadId),
+    listPipelineStages(),
   ]);
 
   if (!lead) {
@@ -50,7 +57,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
         </div>
         <div className="flex flex-wrap gap-3">
           <Badge variant="default">{lead.source}</Badge>
-          <Badge variant="warning">{lead.current_stage?.name ?? "New Lead"}</Badge>
+          <StageBadge stageName={lead.current_stage?.name ?? "New Lead"} />
           <Link
             className={cn(buttonVariants({ variant: "secondary" }), "rounded-2xl")}
             href="/leads"
@@ -106,9 +113,9 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
               <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
                 Current stage
               </p>
-              <p className="mt-2 text-sm font-medium text-slate-950">
-                {lead.current_stage?.name ?? "New Lead"}
-              </p>
+              <div className="mt-2">
+                <StageBadge stageName={lead.current_stage?.name ?? "New Lead"} />
+              </div>
             </div>
             <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4 sm:col-span-2">
               <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Message</p>
@@ -121,40 +128,35 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Activity log</CardTitle>
+            <CardTitle>Stage workflow</CardTitle>
             <CardDescription>
-              Smart Intake starts the operational timeline with lead creation.
+              Stage movement stays user-controlled, logged, and ready for later automation.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {activities.length > 0 ? (
-              <ul className="space-y-3">
-                {activities.map((activity) => (
-                  <li
-                    className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
-                    key={activity.id}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <p className="text-sm font-semibold text-slate-950">
-                          {activity.title}
-                        </p>
-                        <p className="text-sm leading-6 text-slate-600">
-                          {activity.description || "No extra details recorded."}
-                        </p>
-                      </div>
-                      <p className="whitespace-nowrap text-xs text-slate-500">
-                        {formatDateTime(activity.created_at)}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                No activities recorded yet.
+          <CardContent className="space-y-6">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4">
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current stage</p>
+              <div className="mt-3">
+                <StageBadge stageName={lead.current_stage?.name ?? "New Lead"} />
               </div>
-            )}
+            </div>
+
+            <StageSelectorForm
+              currentStageId={lead.current_stage?.id ?? ""}
+              initialState={buildStageChangeFormState(lead.current_stage?.id ?? "")}
+              leadId={lead.id}
+              stages={stages}
+            />
+
+            <div className="space-y-3">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-950">Stage history</h3>
+                <p className="text-sm text-slate-500">
+                  Every stage movement is recorded as the starting pipeline timeline.
+                </p>
+              </div>
+              <StageHistoryList history={stageHistory} />
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -189,6 +191,45 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
           </CardContent>
         </Card>
       </section>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Activity log</CardTitle>
+          <CardDescription>
+            Lead creation, stage changes, and follow-up actions all appear here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {activities.length > 0 ? (
+            <ul className="space-y-3">
+              {activities.map((activity) => (
+                <li
+                  className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4"
+                  key={activity.id}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-slate-950">
+                        {activity.title}
+                      </p>
+                      <p className="text-sm leading-6 text-slate-600">
+                        {activity.description || "No extra details recorded."}
+                      </p>
+                    </div>
+                    <p className="whitespace-nowrap text-xs text-slate-500">
+                      {formatDateTime(activity.created_at)}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+              No activities recorded yet.
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
