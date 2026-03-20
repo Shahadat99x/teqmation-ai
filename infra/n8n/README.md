@@ -9,6 +9,8 @@ Current workflow scaffolds:
 - `stage-changed.workflow.json`
 - `document-request-email.workflow.json`
 - `missing-document-reminder.workflow.json`
+- `invoice-send.workflow.json`
+- `invoice-overdue-reminder.workflow.json`
 
 Both workflows are intentionally scaffolded exports rather than fully live integrations.
 They assume n8n will run with server-side secrets only and use either:
@@ -19,3 +21,5 @@ They assume n8n will run with server-side secrets only and use either:
 These workflows should not move core reminder rules out of the app or database.
 Stage changes are also kept DB-backed: n8n should react to the stage-change queue rather than owning stage truth.
 Document request and missing-document reminder workflows should react to DB-backed request/link queues and never become the source of file or checklist truth.
+Invoice send and overdue reminder workflows should react to DB-backed invoice queues and never become the source of billing status truth.
+The daily summary scaffold now includes both due follow-ups and overdue invoice visibility.

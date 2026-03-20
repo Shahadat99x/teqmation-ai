@@ -51,7 +51,7 @@ export const navigationItems: NavigationItem[] = [
   {
     title: "Invoices",
     href: "/invoices",
-    description: "Billing visibility and invoice status tracking.",
+    description: "Lead-linked billing, due dates, and overdue reminder visibility.",
     icon: ReceiptText,
   },
   {

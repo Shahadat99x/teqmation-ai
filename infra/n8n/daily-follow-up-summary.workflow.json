@@ -51,19 +51,50 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nif (!items.length) {\n  return [{ json: { summary: 'No due follow-ups today.' } }];\n}\nconst lines = items.map((item, index) => {\n  const row = item.json;\n  return `${index + 1}. ${row.lead_name} | ${row.workspace_name} | ${row.channel} | due ${row.due_at}`;\n});\nreturn [{ json: { summary: lines.join('\\n') } }];"
+        "method": "POST",
+        "url": "={{$env.SUPABASE_URL + '/rest/v1/rpc/get_overdue_invoice_queue'}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{'Bearer ' + $env.SUPABASE_SERVICE_ROLE_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"p_limit\": 200 }"
+      },
+      "id": "load-overdue-invoice-queue",
+      "name": "Load Overdue Invoice Queue",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 280]
+    },
+    {
+      "parameters": {
+        "jsCode": "const followUps = $items('Load Due Queue', 0, 0).map((item) => item.json);\nconst overdueInvoices = $input.all().map((item) => item.json);\nconst summaryLines = [];\nsummaryLines.push(`Due follow-ups: ${followUps.length}`);\nif (followUps.length) {\n  followUps.slice(0, 10).forEach((row, index) => {\n    summaryLines.push(`${index + 1}. ${row.lead_name} | ${row.workspace_name} | ${row.channel} | due ${row.due_at}`);\n  });\n}\nsummaryLines.push('');\nsummaryLines.push(`Overdue invoices: ${overdueInvoices.length}`);\nif (overdueInvoices.length) {\n  overdueInvoices.slice(0, 10).forEach((row, index) => {\n    summaryLines.push(`${index + 1}. ${row.lead_name} | ${row.workspace_name} | ${row.invoice_number} | $${(row.amount_cents / 100).toFixed(2)} | due ${row.due_at}`);\n  });\n}\nif (!followUps.length && !overdueInvoices.length) {\n  summaryLines.splice(0, summaryLines.length, 'No due follow-ups or overdue invoices today.');\n}\nreturn [{ json: { summary: summaryLines.join('\\n') } }];"
       },
       "id": "build-summary",
       "name": "Build Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 280]
+      "position": [980, 280]
     },
     {
       "parameters": {
-        "fromEmail": "={{$env.CLIENTFLOW_FROM_EMAIL}}",
-        "toEmail": "={{$env.CLIENTFLOW_SUMMARY_EMAIL}}",
-        "subject": "ClientFlow AI daily follow-up summary",
+        "fromEmail": "={{$env.EMAIL_FROM_ADDRESS}}",
+        "toEmail": "={{$env.DAILY_SUMMARY_EMAIL}}",
+        "subject": "ClientFlow AI daily operations summary",
         "emailType": "text",
         "message": "={{$json.summary}}"
       },
@@ -71,7 +102,7 @@
       "name": "Send Summary Email",
       "type": "n8n-nodes-base.emailSend",
       "typeVersion": 2.1,
-      "position": [980, 280]
+      "position": [1240, 280]
     }
   ],
   "connections": {
@@ -87,6 +118,17 @@
       ]
     },
     "Load Due Queue": {
+      "main": [
+        [
+          {
+            "node": "Load Overdue Invoice Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Overdue Invoice Queue": {
       "main": [
         [
           {
@@ -111,5 +153,5 @@
   },
   "active": false,
   "settings": {},
-  "versionId": "phase-04-daily-summary"
+  "versionId": "phase-07-daily-summary"
 }
