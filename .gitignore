@@ -6,6 +6,8 @@ coverage
 .vercel
 *.tsbuildinfo
 .env
+.env.*
+infra/n8n/.env
 .env.local
 .env.development.local
 .env.test.local
