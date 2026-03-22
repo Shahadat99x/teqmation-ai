@@ -27,8 +27,11 @@ services:
     depends_on:
       n8n-postgres:
         condition: service_healthy
+    env_file:
+      - ./.env
+      - ../../apps/web/.env.local
     ports:
-      - "${N8N_PORT}:5678"
+      - "${N8N_HOST_PORT}:5678"
     environment:
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: n8n-postgres

@@ -78,7 +78,7 @@
     },
     {
       "parameters": {
-        "fromEmail": "={{$env.CLIENTFLOW_FROM_EMAIL}}",
+        "fromEmail": "={{$env.EMAIL_FROM_ADDRESS}}",
         "toEmail": "={{$json.lead_email}}",
         "subject": "Follow-up reminder for {{$json.lead_name}}",
         "emailType": "text",
